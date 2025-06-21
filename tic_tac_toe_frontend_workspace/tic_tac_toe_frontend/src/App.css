@@ -21,6 +21,139 @@ body {
   flex-direction: column;
 }
 
+/* --- Tic Tac Toe Styles --- */
+.ttt-hero {
+  padding-top: 110px;
+  padding-bottom: 60px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+.ttt-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(60px, 1fr));
+  grid-template-rows: repeat(3, minmax(60px, 1fr));
+  gap: 12px;
+  margin: 28px auto 10px auto;
+  max-width: 320px;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--base-dark);
+  border-radius: 12px;
+  box-shadow: 0 1px 18px 0 rgba(0,0,0,0.13);
+  transition: box-shadow 0.2s;
+}
+
+.ttt-cell {
+  background: var(--base-light);
+  color: var(--base-dark);
+  border: 2px solid var(--border-color);
+  font-size: 2.1rem;
+  width: 100%;
+  height: 70px;
+  min-width: 55px;
+  min-height: 55px;
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.16s, color 0.16s, border 0.14s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.ttt-cell.filled {
+  background: #e3f2fd;
+  color: #263238;
+  cursor: default;
+}
+
+.ttt-cell:disabled {
+  opacity: 0.78;
+  cursor: not-allowed;
+}
+
+.ttt-status {
+  margin: 0.5rem 0 0.9rem 0;
+  font-size: 1.23rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  min-height: 1.8em;
+}
+
+.ttt-status.primary {
+  color: var(--base-light);
+}
+
+.ttt-status.secondary {
+  color: var(--base-dark);
+  background: var(--base-light);
+  border-radius: 4px;
+  padding: 0.1em 0.45em;
+  display: inline-block;
+}
+
+.ttt-status.draw {
+  color: #ffc107;
+  background: #1a1a1a33;
+  border-radius: 4px;
+  padding: 0.1em 0.45em;
+  display: inline-block;
+}
+
+/* Hide focus in default (minimal) mode */
+.ttt-cell:focus {
+  box-shadow: 0 0 0 0.17rem var(--base-light);
+  border-color: var(--base-light);
+  outline: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .ttt-board {
+    max-width: 99vw;
+    gap: 8px;
+  }
+  .ttt-cell {
+    font-size: 1.38rem;
+    min-width: 34px;
+    min-height: 36px;
+    height: 13vw;
+    border-radius: 6px;
+  }
+  .ttt-hero {
+    padding-top: 64px;
+  }
+  .navbar {
+    padding: 11px;
+  }
+  .container {
+    padding: 0 8px;
+  }
+}
+
+/* Reset Game Button */
+.ttt-reset {
+  background: var(--base-dark);
+  color: var(--base-light);
+  border: 1.5px solid var(--base-light);
+  font-weight: 500;
+  border-radius: 4px;
+  transition: background 0.16s, color 0.16s, border 0.14s;
+}
+.ttt-reset:hover, .ttt-reset:focus {
+  background: var(--base-light);
+  color: var(--base-dark);
+  border-color: var(--base-dark);
+}
+
+
 .navbar {
   background-color: var(--base-dark);
   padding: 16px;

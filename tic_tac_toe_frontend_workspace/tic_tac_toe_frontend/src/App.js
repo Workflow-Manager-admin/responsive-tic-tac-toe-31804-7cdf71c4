@@ -1,29 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './App.css';
+import { fetchGameState, postMove, postResetGame } from './api';
 
-/**
- * Returns the winner ('X' or 'O') if present, or 'draw', otherwise null.
- * @param {string[]} squares 3x3 board in a 1D array of 9 cells ('' | 'X' | 'O')
- */
-function calculateWinner(squares) {
-  const lines = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-    [0, 4, 8], [2, 4, 6],            // Diagonals
+// Backend to frontend board format conversion helpers
+function flattenBoard(board2D) {
+  // board2D is [["X","O",""],["O","",""],["","","X"]]
+  return board2D ? [].concat(...board2D) : Array(9).fill('');
+}
+function unflattenBoard(flat9) {
+  // "XOXXO    " => [["X","O","X"],["X","O",""],["","",""]]
+  return [
+    flat9.slice(0, 3),
+    flat9.slice(3, 6),
+    flat9.slice(6, 9),
   ];
-  for (const [a, b, c] of lines) {
-    if (
-      squares[a] &&
-      squares[a] === squares[b] &&
-      squares[a] === squares[c]
-    ) {
-      return squares[a];
-    }
-  }
-  if (squares.every(cell => cell)) return 'draw';
-  return null;
 }
 
+// A presentational board
 function Board({ squares, onSquareClick, disabled }) {
   return (
     <div className="ttt-board">
@@ -44,37 +37,78 @@ function Board({ squares, onSquareClick, disabled }) {
 
 // PUBLIC_INTERFACE
 function App() {
-  // '' | 'X' | 'O' in 9 cells
-  const [board, setBoard] = useState(Array(9).fill(''));
-  const [isXNext, setIsXNext] = useState(true);
-  const winner = calculateWinner(board);
+  /* State reflects what backend provides: board, currentPlayer, winner, is_draw, error */
+  const [backendState, setBackendState] = useState({
+    board: Array(3).fill().map(() => Array(3).fill('')),
+    current_player: 'X',
+    winner: null,
+    is_draw: false,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Status Message
+  // Convert backend board to flat 1D array for rendering
+  const flatBoard = flattenBoard(backendState.board);
+
+  // Status logic from backend state
   let status, statusClass = '';
-  if (winner === 'draw') {
+  if (backendState.is_draw) {
     status = "It's a draw!";
     statusClass = 'draw';
-  } else if (winner) {
-    status = `Player ${winner} wins!`;
-    statusClass = winner === 'X' ? 'primary' : 'secondary';
+  } else if (backendState.winner) {
+    status = `Player ${backendState.winner} wins!`;
+    statusClass = backendState.winner === 'X' ? 'primary' : 'secondary';
   } else {
-    status = `Turn: Player ${isXNext ? 'X' : 'O'}`;
-    statusClass = isXNext ? 'primary' : 'secondary';
+    status = `Turn: Player ${backendState.current_player}`;
+    statusClass = backendState.current_player === 'X' ? 'primary' : 'secondary';
   }
 
-  // Handle cell click
-  const handleSquareClick = idx => {
-    if (board[idx] || winner) return;
-    const newBoard = board.slice();
-    newBoard[idx] = isXNext ? 'X' : 'O';
-    setBoard(newBoard);
-    setIsXNext(!isXNext);
+  // Fetch state on mount & after reset
+  useEffect(() => {
+    refreshGameState();
+    // eslint-disable-next-line
+  }, []);
+
+  // Load state from backend
+  async function refreshGameState() {
+    setLoading(true);
+    setError("");
+    try {
+      const state = await fetchGameState();
+      setBackendState(state);
+    } catch (err) {
+      setError(err.message || "Failed to fetch game state");
+    }
+    setLoading(false);
+  }
+
+  // Handle cell click: submit to backend if cell is empty, game not over, no pending request
+  const handleSquareClick = async idx => {
+    if (loading) return;
+    if (flatBoard[idx] || backendState.winner || backendState.is_draw) return;
+    const row = Math.floor(idx / 3), col = idx % 3;
+    setLoading(true);
+    setError("");
+    try {
+      const result = await postMove(row, col, backendState.current_player);
+      setBackendState(result);
+    } catch (err) {
+      setError(err.message || "Move failed");
+    }
+    setLoading(false);
   };
 
-  // Reset game
-  const handleReset = () => {
-    setBoard(Array(9).fill(''));
-    setIsXNext(true);
+  // Reset game via backend
+  const handleReset = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const state = await postResetGame();
+      setBackendState(state);
+    } catch (err) {
+      setError(err.message || "Reset failed");
+    }
+    setLoading(false);
   };
 
   return (
@@ -85,7 +119,9 @@ function App() {
             <div className="logo">
               <span className="logo-symbol">*</span> Tic Tac Toe
             </div>
-            <button className="btn" onClick={handleReset}>New Game</button>
+            <button className="btn" onClick={handleReset} disabled={loading}>
+              New Game
+            </button>
           </div>
         </div>
       </nav>
@@ -95,17 +131,19 @@ function App() {
             <div className="subtitle">Classic Game • Modern Design</div>
             <h1 className="title" style={{ fontSize: '2.4rem', margin: 0 }}>Tic Tac Toe</h1>
             <div className="description" style={{ marginBottom: '16px' }}>
-              Enjoy a responsive, minimal Tic Tac Toe game. Play as X and O locally!
+              Enjoy a responsive, minimal Tic Tac Toe game. Play as X and O via API!
             </div>
+            {error && <ErrorBar message={error} />}
             <StatusBar message={status} statusClass={statusClass} />
             <Board
-              squares={board}
+              squares={flatBoard}
               onSquareClick={handleSquareClick}
-              disabled={!!winner}
+              disabled={!!backendState.winner || backendState.is_draw || loading}
             />
             <button
               className="btn btn-large ttt-reset"
               onClick={handleReset}
+              disabled={loading}
               style={{ marginTop: 28 }}
             >
               Reset Game
@@ -120,6 +158,23 @@ function App() {
 function StatusBar({ message, statusClass }) {
   return (
     <div className={`ttt-status ${statusClass}`}>
+      {message}
+    </div>
+  );
+}
+
+function ErrorBar({ message }) {
+  return (
+    <div style={{
+      color: '#fff',
+      background: '#f44336',
+      borderRadius: '5px',
+      margin: '6px 0 10px 0',
+      padding: '0.55em 0.8em',
+      fontWeight: 500,
+      fontSize: '1.1em',
+      boxShadow: '0 1px 6px rgba(224,42,0,0.08)'
+    }}>
       {message}
     </div>
   );
